@@ -1,0 +1,1699 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Феод: Военные Квесты</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            -webkit-tap-highlight-color: transparent; /* Убираем подсветку при тапе */
+        }
+
+        body {
+            background: linear-gradient(135deg, #1a2a3a, #0d1b26);
+            color: #e0e0e0;
+            height: 100vh;
+            overflow: hidden;
+            padding: 20px;
+            touch-action: manipulation; /* Улучшаем обработку касаний */
+        }
+
+        .game-container {
+            display: flex;
+            height: calc(100vh - 100px);
+            gap: 20px;
+        }
+
+        /* Стили для гексагональной сетки */
+        .hex-grid {
+            position: relative;
+            width: 65%;
+            height: 100%;
+            background: rgba(10, 20, 30, 0.7);
+            border-radius: 12px;
+            border: 1px solid #3a506b;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        .hex-row {
+            display: flex;
+            justify-content: center;
+            margin-bottom: -26px;
+        }
+
+        .hex {
+            position: relative;
+            width: 160px;
+            height: 185px;
+            background: #2c3e50;
+            margin: 0 10px;
+            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border: 2px solid #3a506b;
+        }
+
+        .hex:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(74, 107, 136, 0.7);
+            z-index: 10;
+        }
+
+        .center-hex {
+            background: linear-gradient(135deg, #4a648f, #2c3e50);
+            border-color: #5d7aa0;
+        }
+
+        .wasteland {
+            background: linear-gradient(135deg, #3a3a3a, #2c2c2c);
+        }
+
+        .building-icon {
+            font-size: 36px;
+            margin-bottom: 10px;
+            color: #ffcc66;
+        }
+
+        .hex-title {
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+            padding: 0 10px;
+            color: #fff;
+            text-shadow: 0 0 5px rgba(0, 0, 0, 0.7);
+        }
+
+        .hex-resources {
+            display: flex;
+            justify-content: center;
+            margin-top: 10px;
+            gap: 8px;
+        }
+
+        .resource-badge {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Боковая панель */
+        .right-panel {
+            width: 35%;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .game-menu {
+            background: rgba(10, 20, 30, 0.7);
+            border-radius: 12px;
+            border: 1px solid #3a506b;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            padding: 20px;
+            height: 40%;
+        }
+
+        .menu-title {
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 20px;
+            color: #ffcc66;
+            border-bottom: 1px solid #3a506b;
+            padding-bottom: 10px;
+        }
+
+        .chat-container {
+            background: rgba(10, 20, 30, 0.7);
+            border-radius: 12px;
+            border: 1px solid #3a506b;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            padding: 20px;
+            height: 60%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .quest-history-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .history-entry {
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            background: rgba(58, 80, 107, 0.4);
+        }
+
+        .history-entry.positive {
+            background: rgba(40, 100, 40, 0.4);
+            border-left: 3px solid #4CAF50;
+        }
+
+        .history-entry.negative {
+            background: rgba(100, 40, 40, 0.4);
+            border-left: 3px solid #F44336;
+        }
+
+        /* Кнопки ускорения */
+        .speed-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+
+        .speed-btn {
+            background: #3a506b;
+            color: #e0e0e0;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .speed-btn.active {
+            background: #4a648f;
+            box-shadow: 0 0 10px rgba(74, 107, 136, 0.7);
+        }
+
+        .speed-btn:hover {
+            background: #4a648f;
+        }
+
+        /* Активные квесты */
+        .active-quests-container {
+            margin-top: 15px;
+        }
+
+        .active-quest {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .quest-progress {
+            height: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            margin: 8px 0;
+            overflow: hidden;
+        }
+
+        .quest-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4a648f, #5bc0be);
+            border-radius: 5px;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        .quest-timer {
+            font-size: 12px;
+            color: #ffcc66;
+        }
+
+        /* Нижняя панель */
+        .bottom-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(10, 20, 30, 0.7);
+            border-radius: 12px;
+            border: 1px solid #3a506b;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            padding: 15px 20px;
+            margin-top: 20px;
+            height: 60px;
+        }
+
+        .resource-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 18px;
+        }
+
+        .resource-icon {
+            font-size: 24px;
+            color: #ffcc66;
+        }
+
+        .player-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .player-title {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 5px 10px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .castle-level {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 5px 10px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* Модальные окна */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1a2a3a, #0d1b26);
+            width: 80%;
+            max-width: 700px;
+            border-radius: 12px;
+            border: 1px solid #3a506b;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+            overflow: hidden;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-bottom: 1px solid #3a506b;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            color: #ffcc66;
+            font-size: 24px;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            color: #e0e0e0;
+            font-size: 28px;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .close-modal:hover {
+            background: rgba(255, 0, 0, 0.2);
+        }
+
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            background: #3a506b;
+            color: #e0e0e0;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .tab.active {
+            background: #4a648f;
+            box-shadow: 0 0 10px rgba(74, 107, 136, 0.7);
+        }
+
+        .tab:hover {
+            background: #4a648f;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .quest-card {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .quest-card:hover {
+            background: rgba(58, 80, 107, 0.4);
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .quest-icon {
+            font-size: 24px;
+            color: #ffcc66;
+            margin-bottom: 10px;
+        }
+
+        .quest-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #ffcc66;
+        }
+
+        .quest-description {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #b0b0b0;
+        }
+
+        .quest-stats {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .quest-stat {
+            text-align: center;
+        }
+
+        .quest-stat-value {
+            font-weight: bold;
+            color: #5bc0be;
+        }
+
+        .quest-stat-label {
+            font-size: 12px;
+            color: #b0b0b0;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #3a506b;
+        }
+
+        .info-label {
+            color: #b0b0b0;
+        }
+
+        .info-value {
+            font-weight: bold;
+            color: #ffcc66;
+        }
+
+        .building-options {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .building-option {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .building-option:hover {
+            background: rgba(58, 80, 107, 0.4);
+            transform: translateY(-3px);
+        }
+
+        .building-option i {
+            font-size: 32px;
+            color: #ffcc66;
+            margin-bottom: 10px;
+        }
+
+        .quest-interface {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .quest-scene {
+            text-align: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+        }
+
+        .quest-text {
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        .quest-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .quest-option {
+            flex: 1;
+            min-width: 200px;
+            background: #3a506b;
+            color: #e0e0e0;
+            border: none;
+            padding: 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .quest-option:hover {
+            background: #4a648f;
+        }
+
+        .quest-option:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .quest-result {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .quest-rewards {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .reward-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px 15px;
+            border-radius: 20px;
+        }
+
+        .reward-icon {
+            color: #ffcc66;
+        }
+
+        /* Адаптивность */
+        @media (max-width: 1200px) {
+            .game-container {
+                flex-direction: column;
+                height: auto;
+            }
+            
+            .hex-grid, .right-panel {
+                width: 100%;
+            }
+            
+            .hex-grid {
+                height: 50vh;
+            }
+            
+            .bottom-bar {
+                flex-wrap: wrap;
+                height: auto;
+                padding: 10px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .building-options {
+                grid-template-columns: 1fr;
+            }
+            
+            .hex {
+                width: 120px;
+                height: 140px;
+            }
+            
+            .building-icon {
+                font-size: 24px;
+            }
+            
+            .hex-title {
+                font-size: 12px;
+            }
+
+            .quest-option {
+                min-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <!-- Гексагональная сетка 2-3-2 -->
+        <div class="hex-grid">
+            <div class="hex-row">
+                <div class="hex wasteland" id="wasteland1">
+                    <i class="building-icon fas fa-skull-crossbones"></i>
+                    <div class="hex-title">Пустошь 1</div>
+                    <div class="hex-resources">
+                        <div class="resource-badge" id="wasteland1-progress">
+                            <i class="fas fa-hammer"></i> <span>0%</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="hex" id="church">
+                    <i class="building-icon fas fa-church"></i>
+                    <div class="hex-title">Церковь</div>
+                </div>
+            </div>
+            
+            <div class="hex-row">
+                <div class="hex" id="val">
+                    <i class="building-icon fas fa-shield-alt"></i>
+                    <div class="hex-title">Вал</div>
+                </div>
+                <div class="hex center-hex" id="castle">
+                    <i class="building-icon fas fa-crown"></i>
+                    <div class="hex-title">Домен</div>
+                    <div class="hex-resources">
+                        <div class="resource-badge">
+                            <i class="fas fa-bolt"></i> <span id="electricity">15</span>
+                        </div>
+                        <div class="resource-badge">
+                            <i class="fas fa-chess-rook"></i> <span id="castle-level">1</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="hex" id="raid">
+                    <i class="building-icon fas fa-fist-raised"></i>
+                    <div class="hex-title">Набеги</div>
+                </div>
+            </div>
+            
+            <div class="hex-row">
+                <div class="hex wasteland" id="wasteland2">
+                    <i class="building-icon fas fa-skull-crossbones"></i>
+                    <div class="hex-title">Пустошь 2</div>
+                    <div class="hex-resources">
+                        <div class="resource-badge" id="wasteland2-progress">
+                            <i class="fas fa-hammer"></i> <span>0%</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="hex wasteland" id="wasteland3">
+                    <i class="building-icon fas fa-skull-crossbones"></i>
+                    <div class="hex-title">Пустошь 3</div>
+                    <div class="hex-resources">
+                        <div class="resource-badge" id="wasteland3-progress">
+                            <i class="fas fa-hammer"></i> <span>0%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Боковая панель -->
+        <div class="right-panel">
+            <div class="game-menu">
+                <div class="menu-title">Военные операции</div>
+                
+                <!-- Кнопки ускорения времени -->
+                <div class="speed-controls">
+                    <button class="speed-btn active" data-speed="1">x1</button>
+                    <button class="speed-btn" data-speed="2">x2</button>
+                    <button class="speed-btn" data-speed="10">x10</button>
+                    <button class="speed-btn" data-speed="100">x100</button>
+                </div>
+                
+                <!-- Активные квесты -->
+                <div class="active-quests-container" id="active-quests">
+                    <h3>Активные задания</h3>
+                    <div id="active-quests-list">
+                        <!-- Активные квесты будут здесь -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- История квестов -->
+            <div class="chat-container">
+                <div class="chat-header">
+                    <div class="menu-title">История квестов</div>
+                </div>
+                <div class="quest-history-container" id="quest-history">
+                    <!-- История квестов будет здесь -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Нижняя информационная панель -->
+    <div class="bottom-bar">
+        <div class="resource-item" id="knights-res">
+            <i class="resource-icon fas fa-shield-alt"></i>
+            <div>
+                <span class="resource-value" id="knights-value">100</span>
+                <span class="resource-production">(<span id="knights-free">100</span> своб.)</span>
+            </div>
+        </div>
+        
+        <div class="resource-item" id="gold-res">
+            <i class="resource-icon fas fa-coins"></i>
+            <div>
+                <span class="resource-value" id="gold-value">1,250</span>
+                <span class="resource-production">ДСМ</span>
+            </div>
+        </div>
+        
+        <div class="resource-item" id="food-res">
+            <i class="resource-icon fas fa-apple-alt"></i>
+            <div>
+                <span class="resource-value" id="food-value">200</span>
+            </div>
+        </div>
+        
+        <div class="player-info">
+            <div class="player-title">
+                <i class="fas fa-crown"></i> <span id="player-title">Фрайгерр</span>
+            </div>
+            <div class="castle-level">
+                <i class="fas fa-chess-rook"></i> <span id="player-castle-level">1</span>
+            </div>
+            <div class="player-name" id="player-name">Роман_Черный</div>
+        </div>
+    </div>
+    
+    <!-- Модальное окно для управления доменом -->
+    <div class="modal" id="castle-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Управление Доменом</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="tabs">
+                    <button class="tab active" data-tab="quests">Военные Квесты</button>
+                    <button class="tab" data-tab="resources">Ресурсы</button>
+                    <button class="tab" data-tab="management">Управление</button>
+                </div>
+                
+                <!-- Вкладка Квестов -->
+                <div class="tab-content active" id="quests-tab">
+                    <h3>Доступные задания</h3>
+                    <p>Отправьте войска для выполнения различных миссий и получения наград.</p>
+                    
+                    <div class="quest-container" id="quests-container">
+                        <!-- Квесты будут добавлены здесь -->
+                    </div>
+                    
+                    <div class="active-quests-container">
+                        <h3>Текущие операции</h3>
+                        <div id="active-quests-modal">
+                            <!-- Активные квесты будут здесь -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Вкладка Ресурсов -->
+                <div class="tab-content" id="resources-tab">
+                    <h3>Ресурсы феода</h3>
+                    
+                    <div class="info-item">
+                        <span class="info-label">Золото (ДСМ):</span>
+                        <span class="info-value" id="modal-gold">1,250</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Продовольствие:</span>
+                        <span class="info-value" id="modal-food">200</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Рыцари:</span>
+                        <span class="info-value" id="modal-knights">100</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Свободные рыцари:</span>
+                        <span class="info-value" id="modal-free-knights">100</span>
+                    </div>
+                    
+                    <h3 style="margin-top: 20px;">Производство</h3>
+                    <div class="info-item">
+                        <span class="info-label">Доход в день:</span>
+                        <span class="info-value">250 ДСМ</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Продовольствие в день:</span>
+                        <span class="info-value">50</span>
+                    </div>
+                </div>
+                
+                <!-- Вкладка Управления -->
+                <div class="tab-content" id="management-tab">
+                    <h3>Управление феодом</h3>
+                    
+                    <div class="info-item">
+                        <span class="info-label">Уровень замка:</span>
+                        <span class="info-value">1</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Репутация:</span>
+                        <span class="info-value">Нейтральная</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Влияние церкви:</span>
+                        <span class="info-value">Среднее</span>
+                    </div>
+                    
+                    <h3 style="margin-top: 20px;">Улучшения</h3>
+                    <div class="building-options">
+                        <div class="building-option" data-type="barracks">
+                            <i class="fas fa-fort-awesome"></i>
+                            <div>Казармы</div>
+                            <small>Цена: 500 ДСМ</small>
+                        </div>
+                        <div class="building-option" data-type="farm">
+                            <i class="fas fa-tractor"></i>
+                            <div>Ферма</div>
+                            <small>Цена: 300 ДСМ</small>
+                        </div>
+                        <div class="building-option" data-type="workshop">
+                            <i class="fas fa-tools"></i>
+                            <div>Мастерская</div>
+                            <small>Цена: 700 ДСМ</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-button close-modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Модальное окно для квеста -->
+    <div class="modal" id="quest-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="quest-modal-title">Зачистка Пустоши</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body quest-interface">
+                <div class="quest-scene">
+                    <i class="fas fa-skull-crossbones fa-3x" style="margin-bottom: 15px;"></i>
+                    <div class="quest-text" id="quest-text">
+                        Ваши рыцари прибыли на пустошь. Перед ними лежат развалины старого поселения, кишащие бандитами и мутантами.
+                    </div>
+                </div>
+                
+                <div class="quest-options" id="quest-options">
+                    <!-- Варианты действий будут здесь -->
+                </div>
+                
+                <div class="quest-result" id="quest-result" style="display: none;">
+                    <h3>Результаты квеста</h3>
+                    <div id="result-text"></div>
+                    
+                    <div class="quest-rewards" id="quest-rewards">
+                        <!-- Награды будут здесь -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Состояние игры
+        const gameState = {
+            gold: 1250,
+            food: 200,
+            knights: 100,
+            freeKnights: 100,
+            reputation: 50,
+            churchFavor: 50,
+            activeQuests: [],
+            questHistory: [],
+            buildings: {
+                barracks: false,
+                farm: false,
+                workshop: false
+            },
+            quests: [
+                {
+                    id: 1,
+                    type: 'wasteland',
+                    name: 'Зачистка Пустоши',
+                    description: 'Очистите территорию от бандитов и мутантов, чтобы расширить свои владения.',
+                    icon: 'fa-skull-crossbones',
+                    duration: 30, // в секундах (для теста)
+                    minKnights: 10,
+                    maxKnights: 30,
+                    assignedKnights: 0,
+                    risk: 20 // процент потерь
+                },
+                {
+                    id: 2,
+                    type: 'val',
+                    name: 'Защита Вала',
+                    description: 'Обороняйте границы от набегов мародёров и еретиков.',
+                    icon: 'fa-shield-alt',
+                    duration: 45,
+                    minKnights: 15,
+                    maxKnights: 40,
+                    assignedKnights: 0,
+                    risk: 30
+                },
+                {
+                    id: 3,
+                    type: 'church',
+                    name: 'Помощь Церкви',
+                    description: 'Окажите поддержку церкви в борьбе с еретиками и укреплении веры.',
+                    icon: 'fa-church',
+                    duration: 35,
+                    minKnights: 5,
+                    maxKnights: 20,
+                    assignedKnights: 0,
+                    risk: 10
+                },
+                {
+                    id: 4,
+                    type: 'raid',
+                    name: 'Набег на Соседа',
+                    description: 'Проведите набег на соседние земли для захвата ресурсов.',
+                    icon: 'fa-fist-raised',
+                    duration: 50,
+                    minKnights: 20,
+                    maxKnights: 50,
+                    assignedKnights: 0,
+                    risk: 40
+                }
+            ],
+            currentQuest: null,
+            currentStep: 0,
+            gameSpeed: 1
+        };
+
+        // Инициализация игры
+        document.addEventListener('DOMContentLoaded', () => {
+            initGame();
+            setupEventListeners();
+            renderQuests();
+            updateResourceDisplay();
+            updateActiveQuests();
+        });
+
+        function initGame() {
+            // Загрузка сохраненного состояния
+            const savedState = localStorage.getItem('feodGameState');
+            if (savedState) {
+                try {
+                    const parsed = JSON.parse(savedState);
+                    // Сохраняем только необходимые свойства
+                    gameState.gold = parsed.gold || gameState.gold;
+                    gameState.food = parsed.food || gameState.food;
+                    gameState.knights = parsed.knights || gameState.knights;
+                    gameState.freeKnights = parsed.freeKnights || gameState.freeKnights;
+                    gameState.reputation = parsed.reputation || gameState.reputation;
+                    gameState.churchFavor = parsed.churchFavor || gameState.churchFavor;
+                    gameState.activeQuests = parsed.activeQuests || [];
+                    gameState.questHistory = parsed.questHistory || [];
+                    gameState.buildings = parsed.buildings || gameState.buildings;
+                    
+                    // Восстанавливаем таймеры активных квестов
+                    gameState.activeQuests.forEach(quest => {
+                        if (quest.status === 'active') {
+                            const elapsed = Date.now() - quest.startTime;
+                            const remaining = quest.duration * 1000 - elapsed;
+                            
+                            if (remaining > 0) {
+                                setTimeout(() => {
+                                    completeQuest(quest);
+                                }, remaining);
+                            } else {
+                                completeQuest(quest);
+                            }
+                        }
+                    });
+                } catch(e) {
+                    console.error('Ошибка загрузки состояния:', e);
+                }
+            }
+            
+            // Восстановление истории
+            gameState.questHistory.forEach(entry => {
+                addToQuestHistory(entry.text, entry.type, false);
+            });
+        }
+
+        function setupEventListeners() {
+            // Исправление для мобильных устройств: используем touchend вместо click
+            const castleElement = document.getElementById('castle');
+            
+            // Универсальный обработчик для всех устройств
+            const handleCastleClick = () => {
+                console.log("Клик по замку");
+                document.getElementById('castle-modal').classList.add('active');
+            };
+            
+            if (castleElement) {
+                // Добавляем обработчики и для касания, и для клика
+                castleElement.addEventListener('click', handleCastleClick);
+                castleElement.addEventListener('touchend', function(e) {
+                    e.preventDefault(); // Предотвращаем двойное срабатывание
+                    handleCastleClick();
+                });
+            } else {
+                console.error("Элемент замка не найден!");
+            }
+            
+            // Обработчики для всех кнопок
+            document.querySelectorAll('button').forEach(button => {
+                button.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    this.click();
+                });
+            });
+            
+            // Закрытие модальных окон
+            document.querySelectorAll('.close-modal').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    e.target.closest('.modal').classList.remove('active');
+                });
+                button.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    this.click();
+                });
+            });
+            
+            // Переключение вкладок
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const tabId = tab.dataset.tab;
+                    
+                    // Сброс активных вкладок
+                    tab.parentElement.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    
+                    // Показать соответствующее содержимое
+                    const container = tab.closest('.modal-content');
+                    container.querySelectorAll('.tab-content').forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    container.querySelector(`#${tabId}-tab`).classList.add('active');
+                });
+                
+                tab.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    this.click();
+                });
+            });
+            
+            // Управление скоростью игры
+            document.querySelectorAll('.speed-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    gameState.gameSpeed = parseInt(btn.dataset.speed);
+                });
+                
+                btn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    this.click();
+                });
+            });
+            
+            // Кнопка закрытия в футере модалки
+            const closeButton = document.querySelector('.modal-button.close-modal');
+            if (closeButton) {
+                closeButton.addEventListener('click', () => {
+                    document.getElementById('castle-modal').classList.remove('active');
+                });
+                closeButton.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    this.click();
+                });
+            }
+            
+            // Обработчики для улучшений
+            document.querySelectorAll('.building-option').forEach(option => {
+                option.addEventListener('click', () => {
+                    const buildingType = option.dataset.type;
+                    buyBuilding(buildingType);
+                });
+                
+                option.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    this.click();
+                });
+            });
+        }
+
+        function buyBuilding(type) {
+            let cost = 0;
+            let effect = '';
+            
+            switch(type) {
+                case 'barracks':
+                    if (gameState.buildings.barracks) {
+                        addToQuestHistory("Казармы уже построены", 'negative');
+                        return;
+                    }
+                    cost = 500;
+                    if (gameState.gold < cost) {
+                        addToQuestHistory("Недостаточно золота для постройки казарм", 'negative');
+                        return;
+                    }
+                    gameState.gold -= cost;
+                    gameState.buildings.barracks = true;
+                    gameState.knights += 50;
+                    gameState.freeKnights += 10;
+                    effect = "Построены казармы! +50 рыцарей и +10 свободных рыцарей";
+                    break;
+                    
+                case 'farm':
+                    if (gameState.buildings.farm) {
+                        addToQuestHistory("Ферма уже построена", 'negative');
+                        return;
+                    }
+                    cost = 300;
+                    if (gameState.gold < cost) {
+                        addToQuestHistory("Недостаточно золота для постройки фермы", 'negative');
+                        return;
+                    }
+                    gameState.gold -= cost;
+                    gameState.buildings.farm = true;
+                    gameState.food += 150;
+                    effect = "Построена ферма! +150 продовольствия";
+                    break;
+                    
+                case 'workshop':
+                    if (gameState.buildings.workshop) {
+                        addToQuestHistory("Мастерская уже построена", 'negative');
+                        return;
+                    }
+                    cost = 700;
+                    if (gameState.gold < cost) {
+                        addToQuestHistory("Недостаточно золота для постройки мастерской", 'negative');
+                        return;
+                    }
+                    gameState.gold -= cost;
+                    gameState.buildings.workshop = true;
+                    gameState.gold += 300;
+                    effect = "Построена мастерская! +300 золота";
+                    break;
+            }
+            
+            addToQuestHistory(effect, 'positive');
+            updateResourceDisplay();
+            saveGameState();
+        }
+
+        function renderQuests() {
+            const container = document.getElementById('quests-container');
+            container.innerHTML = '';
+            
+            gameState.quests.forEach(quest => {
+                const questElement = document.createElement('div');
+                questElement.className = 'quest-card';
+                questElement.innerHTML = `
+                    <div class="quest-icon">
+                        <i class="fas ${quest.icon}"></i>
+                    </div>
+                    <div class="quest-title">${quest.name}</div>
+                    <div class="quest-description">${quest.description}</div>
+                    <div class="quest-stats">
+                        <div class="quest-stat">
+                            <div class="quest-stat-value">${quest.minKnights}-${quest.maxKnights}</div>
+                            <div class="quest-stat-label">Рыцарей</div>
+                        </div>
+                        <div class="quest-stat">
+                            <div class="quest-stat-value">${Math.floor(quest.duration/60)} мин</div>
+                            <div class="quest-stat-label">Длительность</div>
+                        </div>
+                        <div class="quest-stat">
+                            <div class="quest-stat-value">${quest.risk}%</div>
+                            <div class="quest-stat-label">Риск</div>
+                        </div>
+                    </div>
+                `;
+                
+                questElement.addEventListener('click', () => {
+                    startQuest(quest.id);
+                });
+                
+                // Обработчик для мобильных устройств
+                questElement.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    startQuest(quest.id);
+                });
+                
+                container.appendChild(questElement);
+            });
+        }
+
+        function startQuest(questId) {
+            const quest = gameState.quests.find(q => q.id === questId);
+            
+            // Проверка доступных рыцарей
+            if (gameState.freeKnights < quest.minKnights) {
+                addToQuestHistory(`Не хватает рыцарей для задания: ${quest.name}`, 'negative');
+                return;
+            }
+            
+            // Создаем глубокую копию квеста для активного задания
+            const activeQuest = JSON.parse(JSON.stringify(quest));
+            activeQuest.startTime = Date.now();
+            activeQuest.assignedKnights = quest.minKnights;
+            activeQuest.status = 'active';
+            activeQuest.progress = 0;
+            activeQuest.interval = null;
+            
+            // Добавляем в активные квесты
+            gameState.activeQuests.push(activeQuest);
+            
+            // Обновляем количество свободных рыцарей
+            gameState.freeKnights -= activeQuest.assignedKnights;
+            
+            // Обновляем отображение
+            updateActiveQuests();
+            updateResourceDisplay();
+            addToQuestHistory(`Начато задание: ${quest.name} с ${quest.minKnights} рыцарями`, 'positive');
+            
+            // Закрываем модальное окно
+            document.getElementById('castle-modal').classList.remove('active');
+            
+            // Запускаем таймер
+            startQuestTimer(activeQuest);
+        }
+
+        function startQuestTimer(quest) {
+            quest.interval = setInterval(() => {
+                const elapsed = (Date.now() - quest.startTime) / 1000;
+                quest.progress = Math.min(100, (elapsed / quest.duration) * 100);
+                
+                // Обновляем отображение прогресса
+                updateActiveQuests();
+                
+                // Если квест завершен
+                if (quest.progress >= 100) {
+                    clearInterval(quest.interval);
+                    completeQuest(quest);
+                }
+            }, 1000);
+        }
+
+        function completeQuest(quest) {
+            // Удаляем из активных квестов
+            gameState.activeQuests = gameState.activeQuests.filter(q => q.id !== quest.id);
+            
+            // Возвращаем рыцарей (с учетом потерь)
+            const losses = Math.floor(quest.assignedKnights * (quest.risk / 100) * Math.random());
+            const returnedKnights = quest.assignedKnights - losses;
+            gameState.freeKnights += returnedKnights;
+            
+            // Генерируем результат квеста
+            generateQuestOutcome(quest, losses);
+            
+            // Обновляем отображение
+            updateActiveQuests();
+            updateResourceDisplay();
+            saveGameState();
+        }
+
+        function generateQuestOutcome(quest, losses) {
+            // Случайный выбор сценария квеста
+            const scenarios = {
+                wasteland: [
+                    {
+                        title: "Зачистка Пустоши",
+                        steps: [
+                            {
+                                text: "Ваши рыцари прибыли на пустошь. Перед ними лежат развалины старого поселения, кишащие бандитами и мутантами.",
+                                options: [
+                                    { text: "Атаковать немедленно", next: 1 },
+                                    { text: "Разведать местность", next: 2 },
+                                    { text: "Поджечь развалины", next: 3 }
+                                ]
+                            },
+                            {
+                                text: "Ваши рыцари смело атаковали врага, но попали в засаду. Потери оказались больше ожидаемых.",
+                                options: [
+                                    { text: "Отступить и перегруппироваться", result: "retreat" },
+                                    { text: "Прорваться вперед любой ценой", result: "push" }
+                                ]
+                            },
+                            {
+                                text: "Вы отправили разведчиков, которые обнаружили скрытые туннели под развалинами. Это может быть ключом к победе.",
+                                options: [
+                                    { text: "Использовать туннели для проникновения", result: "tunnels" },
+                                    { text: "Завалить туннели и атаковать с поверхности", result: "collapse" }
+                                ]
+                            },
+                            {
+                                text: "Пламя охватило развалины, вынуждая врагов покинуть укрытия. Ваши лучники готовы встретить их.",
+                                options: [
+                                    { text: "Открыть огонь по бегущим врагам", result: "fire" },
+                                    { text: "Взять их в плен для допроса", result: "capture" }
+                                ]
+                            }
+                        ]
+                    }
+                ],
+                val: [
+                    {
+                        title: "Защита Вала",
+                        steps: [
+                            {
+                                text: "На рассвете орды мародёров начали штурм вала. Ваши рыцари заняли оборонительные позиции.",
+                                options: [
+                                    { text: "Встретить врага градом стрел", next: 1 },
+                                    { text: "Отправить контратакующий отряд", next: 2 },
+                                    { text: "Использовать зажигательные снаряды", next: 3 }
+                                ]
+                            },
+                            {
+                                text: "Вражеский штурм захлебнулся под ливнем стрел, но их лучники начали ответный обстрел.",
+                                options: [
+                                    { text: "Укрыться за щитами", result: "shields" },
+                                    { text: "Контратаковать лучников", result: "counter" }
+                                ]
+                            },
+                            {
+                                text: "Контратака застала врага врасплох, но ваши рыцари оказались отрезаны от основных сил.",
+                                options: [
+                                    { text: "Прорываться обратно к валу", result: "break" },
+                                    { text: "Отступать в лес", result: "forest" }
+                                ]
+                            },
+                            {
+                                text: "Зажигательные снаряды подожгли осадные орудия врага, вызвав панику в их рядах.",
+                                options: [
+                                    { text: "Атаковать пока враг дезорганизован", result: "attack" },
+                                    { text: "Укрепить оборону на случай новой атаки", result: "defend" }
+                                ]
+                            }
+                        ]
+                    }
+                ],
+                church: [
+                    {
+                        title: "Помощь Церкви",
+                        steps: [
+                            {
+                                text: "Вы прибыли в аббатство, где местный аббат просит помощи в борьбе с еретиками, оскверняющими святыни.",
+                                options: [
+                                    { text: "Организовать патрули", next: 1 },
+                                    { text: "Устроить засаду в церкви", next: 2 },
+                                    { text: "Отправиться к их логову", next: 3 }
+                                ]
+                            },
+                            {
+                                text: "Патрули задержали нескольких подозрительных личностей, но настоящий лидер остался на свободе.",
+                                options: [
+                                    { text: "Допрашивать пойманных", result: "interrogate" },
+                                    { text: "Использовать их как приманку", result: "bait" }
+                                ]
+                            },
+                            {
+                                text: "Засада в церкви привела к схватке с группой еретиков, пытавшихся украсть реликвии.",
+                                options: [
+                                    { text: "Взять их живыми для суда", result: "capture" },
+                                    { text: "Немедленно казнить как предателей веры", result: "execute" }
+                                ]
+                            },
+                            {
+                                text: "Вы нашли логово еретиков в пещере за городом. Внутри царит странная атмосфера.",
+                                options: [
+                                    { text: "Атаковать немедленно", result: "attack" },
+                                    { text: "Подождать подкрепления", result: "wait" }
+                                ]
+                            }
+                        ]
+                    }
+                ],
+                raid: [
+                    {
+                        title: "Набег на Соседа",
+                        steps: [
+                            {
+                                text: "Ваши рыцари пересекли границу соседнего феода под покровом ночи. Впереди виднеется богатая деревня.",
+                                options: [
+                                    { text: "Атаковать деревню", next: 1 },
+                                    { text: "Напасть на поместье феодала", next: 2 },
+                                    { text: "Поджечь поля и уйти", next: 3 }
+                                ]
+                            },
+                            {
+                                text: "Атака на деревню проходит успешно, но вы слышите сигналы тревоги - приближаются вражеские войска.",
+                                options: [
+                                    { text: "Забрать добычу и отступать", result: "retreat" },
+                                    { text: "Устроить засаду на подкрепление", result: "ambush" }
+                                ]
+                            },
+                            {
+                                text: "Штурм поместья оказался сложнее ожидаемого - стены высоки, а защитники хорошо подготовлены.",
+                                options: [
+                                    { text: "Использовать осадные лестницы", result: "ladders" },
+                                    { text: "Поджечь ворота", result: "fire" }
+                                ]
+                            },
+                            {
+                                text: "Поджог полей вызвал панику среди крестьян, но феодал выслал конницу для преследования.",
+                                options: [
+                                    { text: "Принять бой в открытом поле", result: "fight" },
+                                    { text: "Отступать через лес", result: "forest" }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            };
+            
+            // Выбираем случайный сценарий для типа квеста
+            const scenario = scenarios[quest.type][Math.floor(Math.random() * scenarios[quest.type].length)];
+            scenario.losses = losses;
+            scenario.type = quest.type; // Сохраняем тип квеста для результатов
+            
+            // Открываем модальное окно квеста
+            document.getElementById('quest-modal-title').textContent = scenario.title;
+            gameState.currentQuest = scenario;
+            gameState.currentStep = 0;
+            
+            // Показываем первый шаг
+            showQuestStep(0);
+            
+            // Открываем модальное окно
+            document.getElementById('quest-modal').classList.add('active');
+        }
+
+        function showQuestStep(stepIndex) {
+            gameState.currentStep = stepIndex;
+            
+            const step = gameState.currentQuest.steps[stepIndex];
+            const questText = document.getElementById('quest-text');
+            const optionsContainer = document.getElementById('quest-options');
+            const resultContainer = document.getElementById('quest-result');
+            
+            // Скрываем результаты и показываем варианты
+            resultContainer.style.display = 'none';
+            optionsContainer.style.display = 'flex';
+            
+            // Устанавливаем текст шага
+            questText.textContent = step.text;
+            
+            // Очищаем предыдущие варианты
+            optionsContainer.innerHTML = '';
+            
+            // Добавляем новые варианты
+            step.options.forEach((option, index) => {
+                const optionElement = document.createElement('button');
+                optionElement.className = 'quest-option';
+                optionElement.textContent = option.text;
+                
+                optionElement.addEventListener('click', () => {
+                    // Блокируем кнопку после нажатия
+                    optionElement.disabled = true;
+                    
+                    if (option.result) {
+                        // Если это финальный выбор - показываем результат
+                        generateQuestResult(option.result);
+                    } else {
+                        // Иначе переходим к следующему шагу
+                        showQuestStep(option.next);
+                    }
+                });
+                
+                // Обработчик для мобильных устройств
+                optionElement.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    if (!this.disabled) {
+                        this.click();
+                    }
+                });
+                
+                optionsContainer.appendChild(optionElement);
+            });
+        }
+
+        function generateQuestResult(result) {
+            const results = {
+                wasteland: {
+                    retreat: { gold: 200, food: 50, reputation: -5, text: "Вы отступили с минимальными потерями, но пустошь осталась под контролем врага." },
+                    push: { gold: 500, food: 100, knights: -10, reputation: 10, text: "Ценой больших потерь вы очистили пустошь. Теперь здесь можно строить." },
+                    tunnels: { gold: 300, food: 80, reputation: 5, text: "Использовав туннели, вы застали врага врасплох и одержали победу." },
+                    collapse: { gold: 400, food: 70, knights: -5, text: "Завалив туннели, вы обрушили часть развалин, похоронив врагов под обломками." },
+                    fire: { gold: 350, food: 90, reputation: 7, text: "Бегущие враги были перебиты, а вы захватили их запасы." },
+                    capture: { gold: 250, food: 60, reputation: 8, text: "Пленные дали ценную информацию о других бандитских группах." }
+                },
+                val: {
+                    shields: { gold: 300, food: 80, reputation: 10, text: "Укрывшись за щитами, вы переждали обстрел и сохранили силы." },
+                    counter: { gold: 400, food: 60, knights: -8, reputation: 15, text: "Контратака на лучников была успешной, но стоила вам нескольких рыцарей." },
+                    break: { gold: 450, food: 70, knights: -12, reputation: 12, text: "Прорыв стоил больших потерь, но ваши рыцари вернулись к валу." },
+                    forest: { gold: 200, food: 40, reputation: -3, text: "Отступление в лес спасло ваших рыцарей, но враг усилил натиск на вал." },
+                    attack: { gold: 600, food: 100, knights: -15, reputation: 20, text: "Решительная атака обратила врага в бегство. Вал спасен!" },
+                    defend: { gold: 350, food: 90, reputation: 18, text: "Укрепив оборону, вы отразили последующие атаки с минимальными потерями." }
+                },
+                church: {
+                    interrogate: { gold: 150, reputation: 10, churchFavor: 15, text: "Допрос дал информацию о планах еретиков. Церковь довольна." },
+                    bait: { gold: 250, reputation: 12, churchFavor: 20, knights: -3, text: "Использовав пленных как приманку, вы захватили лидера еретиков." },
+                    capture: { gold: 200, reputation: 8, churchFavor: 18, text: "Пленные еретики предстали перед судом инквизиции." },
+                    execute: { gold: 100, reputation: 5, churchFavor: 10, text: "Казнь еретиков послужила уроком для других, но вызвала недовольство среди крестьян." },
+                    attack: { gold: 300, reputation: 15, churchFavor: 25, knights: -7, text: "Атака на логово была успешной, но стоила вам нескольких рыцарей." },
+                    wait: { gold: 180, reputation: 12, churchFavor: 18, text: "Дождавшись подкрепления, вы разгромили еретиков без потерь." }
+                },
+                raid: {
+                    retreat: { gold: 400, food: 120, reputation: -10, text: "Вы отступили с добычей, но соседний феодал поклялся отомстить." },
+                    ambush: { gold: 700, food: 150, knights: -12, reputation: -15, text: "Засада на подкрепление принесла богатую добычу, но ценой больших потерь." },
+                    ladders: { gold: 800, food: 180, knights: -20, reputation: -20, text: "Штурм поместья удался, но потери были значительными." },
+                    fire: { gold: 600, food: 130, knights: -10, reputation: -18, text: "Поджог ворот позволил проникнуть внутрь и захватить ценности." },
+                    fight: { gold: 550, food: 140, knights: -15, reputation: -12, text: "В открытом бою вы разбили конницу феодала и ушли с добычей." },
+                    forest: { gold: 350, food: 100, reputation: -8, text: "Отступление через лес позволило оторваться от преследования, но часть добычи пришлось бросить." }
+                }
+            };
+            
+            // Получаем результат для текущего типа квеста
+            const outcome = results[gameState.currentQuest.type][result];
+            
+            // Применяем награды
+            if (outcome.gold) gameState.gold += outcome.gold;
+            if (outcome.food) gameState.food += outcome.food;
+            if (outcome.knights) gameState.freeKnights += outcome.knights; // Может быть отрицательным
+            if (outcome.reputation) gameState.reputation += outcome.reputation;
+            if (outcome.churchFavor) gameState.churchFavor += outcome.churchFavor;
+            
+            // Обновляем отображение ресурсов
+            updateResourceDisplay();
+            
+            // Показываем результат
+            const resultText = document.getElementById('result-text');
+            const rewardsContainer = document.getElementById('quest-rewards');
+            const resultContainer = document.getElementById('quest-result');
+            const optionsContainer = document.getElementById('quest-options');
+            
+            resultText.textContent = outcome.text;
+            resultContainer.style.display = 'block';
+            optionsContainer.style.display = 'none';
+            
+            // Очищаем награды
+            rewardsContainer.innerHTML = '';
+            
+            // Добавляем награды
+            if (outcome.gold) {
+                const reward = document.createElement('div');
+                reward.className = 'reward-item';
+                reward.innerHTML = `
+                    <div class="reward-icon"><i class="fas fa-coins"></i></div>
+                    <div>+${outcome.gold} ДСМ</div>
+                `;
+                rewardsContainer.appendChild(reward);
+            }
+            
+            if (outcome.food) {
+                const reward = document.createElement('div');
+                reward.className = 'reward-item';
+                reward.innerHTML = `
+                    <div class="reward-icon"><i class="fas fa-apple-alt"></i></div>
+                    <div>+${outcome.food} продовольствия</div>
+                `;
+                rewardsContainer.appendChild(reward);
+            }
+            
+            if (outcome.knights) {
+                const reward = document.createElement('div');
+                reward.className = 'reward-item';
+                reward.innerHTML = `
+                    <div class="reward-icon"><i class="fas fa-shield-alt"></i></div>
+                    <div>${outcome.knights > 0 ? '+' : ''}${outcome.knights} рыцарей</div>
+                `;
+                rewardsContainer.appendChild(reward);
+            }
+            
+            if (outcome.reputation) {
+                const reward = document.createElement('div');
+                reward.className = 'reward-item';
+                reward.innerHTML = `
+                    <div class="reward-icon"><i class="fas fa-star"></i></div>
+                    <div>${outcome.reputation > 0 ? '+' : ''}${outcome.reputation} репутации</div>
+                `;
+                rewardsContainer.appendChild(reward);
+            }
+            
+            if (outcome.churchFavor) {
+                const reward = document.createElement('div');
+                reward.className = 'reward-item';
+                reward.innerHTML = `
+                    <div class="reward-icon"><i class="fas fa-church"></i></div>
+                    <div>${outcome.churchFavor > 0 ? '+' : ''}${outcome.churchFavor} доверия церкви</div>
+                `;
+                rewardsContainer.appendChild(reward);
+            }
+            
+            // Добавляем в историю
+            addToQuestHistory(`Завершено: ${gameState.currentQuest.title} - ${outcome.text}`, 'positive');
+            
+            // Авто-закрытие через 5 секунд
+            setTimeout(() => {
+                document.getElementById('quest-modal').classList.remove('active');
+            }, 5000);
+        }
+
+        function updateActiveQuests() {
+            const container = document.getElementById('active-quests-list');
+            const modalContainer = document.getElementById('active-quests-modal');
+            
+            container.innerHTML = '';
+            modalContainer.innerHTML = '';
+            
+            if (gameState.activeQuests.length === 0) {
+                container.innerHTML = '<div class="active-quest">Нет активных заданий</div>';
+                modalContainer.innerHTML = '<div class="active-quest">Нет активных заданий</div>';
+                return;
+            }
+            
+            gameState.activeQuests.forEach(quest => {
+                const questElement = document.createElement('div');
+                questElement.className = 'active-quest';
+                
+                const timeLeft = Math.max(0, Math.ceil((quest.duration - (Date.now() - quest.startTime) / 1000)));
+                const minutes = Math.floor(timeLeft / 60);
+                const seconds = timeLeft % 60;
+                
+                questElement.innerHTML = `
+                    <div><strong>${quest.name}</strong> (${quest.assignedKnights} рыцарей)</div>
+                    <div class="quest-progress">
+                        <div class="quest-progress-bar" style="width: ${quest.progress}%"></div>
+                    </div>
+                    <div class="quest-timer">Осталось: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}</div>
+                `;
+                
+                container.appendChild(questElement.cloneNode(true));
+                modalContainer.appendChild(questElement);
+            });
+        }
+
+        function addToQuestHistory(text, type = 'neutral', save = true) {
+            const entry = document.createElement('div');
+            entry.className = `history-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+            
+            const container = document.getElementById('quest-history');
+            container.prepend(entry);
+            
+            // Прокрутка к началу
+            container.scrollTop = 0;
+            
+            // Сохраняем в историю игры
+            if (save) {
+                gameState.questHistory.unshift({
+                    text: text,
+                    type: type,
+                    timestamp: new Date()
+                });
+                
+                // Сохраняем состояние игры
+                saveGameState();
+            }
+        }
+
+        function updateResourceDisplay() {
+            document.getElementById('gold-value').textContent = gameState.gold.toLocaleString();
+            document.getElementById('knights-value').textContent = gameState.knights;
+            document.getElementById('knights-free').textContent = gameState.freeKnights;
+            document.getElementById('food-value').textContent = gameState.food;
+            
+            // Для модального окна
+            document.getElementById('modal-gold').textContent = gameState.gold.toLocaleString();
+            document.getElementById('modal-knights').textContent = gameState.knights;
+            document.getElementById('modal-free-knights').textContent = gameState.freeKnights;
+            document.getElementById('modal-food').textContent = gameState.food;
+        }
+
+        function saveGameState() {
+            // Очищаем интервалы перед сохранением
+            gameState.activeQuests = gameState.activeQuests.map(quest => {
+                const { interval, ...rest } = quest;
+                return rest;
+            });
+            
+            localStorage.setItem('feodGameState', JSON.stringify(gameState));
+        }
+
+        // Автосохранение каждые 30 секунд
+        setInterval(saveGameState, 30000);
+    </script>
+</body>
+</html>
